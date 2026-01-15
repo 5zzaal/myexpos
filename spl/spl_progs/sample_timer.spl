@@ -1,2 +1,16 @@
+//user sp at 13 th word 
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+
+//setting userpage to pgnum*512-1
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
+
+backup;
+
 print "TIMER";
+
+restore;
+
+//getback the sp
+SP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+
 ireturn;

@@ -51,6 +51,15 @@ loadi(3, 16);
 [PTBR+19] ="0110";
 
 
+//process table setup
+
+[PROCESS_TABLE + 11] = 80;
+
+[PROCESS_TABLE + 1] = 0;
+
+[SYSTEM_STATUS_TABLE + 1] = 0;
+
+
 //65*512 :makes it reach first code region first is header second bit is entry pint so +1
 
 [76*512] = [65*512+1];
