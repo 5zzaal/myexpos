@@ -52,7 +52,7 @@ loadi(3, 16);
 
 
 //process table setup
-
+//80 as userpage
 [PROCESS_TABLE + 11] = 80;
 
 [PROCESS_TABLE + 1] = 0;
