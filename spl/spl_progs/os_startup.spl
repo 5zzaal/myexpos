@@ -14,6 +14,10 @@ loadi(66,8);
 loadi(22,35);
 loadi(23,36);
 
+//load init7
+loadi(16,29);
+loadi(17,30);
+
 //load exhandler
 loadi(2, 15);
 loadi(3, 16);
@@ -55,8 +59,10 @@ loadi(3, 16);
 //80 as userpage
 [PROCESS_TABLE + 11] = 80;
 
+//pid
 [PROCESS_TABLE + 1] = 0;
 
+//system status table
 [SYSTEM_STATUS_TABLE + 1] = 0;
 
 

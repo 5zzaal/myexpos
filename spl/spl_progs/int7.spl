@@ -1,0 +1,48 @@
+//mode flag set to system callnum
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 5;
+
+
+//save userstack ptr
+alias userSP R0;
+userSP = SP;
+
+
+//switch to kernel
+[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+ 1]* 16)+ 13]=SP;
+SP=[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+ 1]* 16)+ 11]* 512-1;
+
+
+//get file descriptor
+//userSP-4 gives the arg1 from stack
+alias physicalPageNum R1;
+alias offset R2;
+alias fileDescPhysicalAddr R3;
+physicalPageNum=[PTBR+2*((userSP-4)/512)];
+offset=(userSP-4)%512;
+fileDescPhysicalAddr=(physicalPageNum*512)+offset;
+alias fileDescriptor R4;
+fileDescriptor=[fileDescPhysicalAddr];
+
+//check file descriptor
+if(fileDescriptor!=-2)
+then 
+//invalid ret val
+alias physcialaddrRetval R5;
+physcialaddrRetval=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
+[physcialaddrRetval]=-1;
+else 
+//print the word and succesfull
+alias word R5;
+word=[[PTBR+2*((userSP-3)/512)]*512+((userSP-3)%512)];
+print word;
+alias physcialaddrRetval R6;
+physcialaddrRetval=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
+[physcialaddrRetval]=0;
+endif;
+
+//reset usersp and mode flag to zero
+SP=userSP;
+[PROCESS_TABLE+[SYSTEM_STATUS_TABLE+1]*16+9]=0;
+
+//back to usermode
+ireturn;
