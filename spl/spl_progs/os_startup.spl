@@ -95,7 +95,7 @@ loadi(3, 16);
 
 //processtable for idle
 
-//80 as userpage
+//82 as userpage
 [PROCESS_TABLE + 11] = 82;
 
 //pid
@@ -125,7 +125,7 @@ loadi(3, 16);
 [PROCESS_TABLE + 16 ] = 1;
 
 //uptr
-[PROCESS_TABLE + 16 + 13] = 80;
+[PROCESS_TABLE + 16 + 13] = 8*512;
 
 //kptr
 [PROCESS_TABLE + 16 + 12] = 0;
@@ -138,10 +138,6 @@ loadi(3, 16);
 
 //state
 [PROCESS_TABLE + 16 + 4] = RUNNING;
-
-
-//system status table
-[SYSTEM_STATUS_TABLE + 1] = 0;
 
 
 //65*512 :makes it reach first code region first is header second bit is entry pint so +1
