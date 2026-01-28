@@ -70,6 +70,8 @@ call BOOT_MODULE;
 //state
 [PROCESS_TABLE + 4] = RUNNING;
 
+//update system table
+[SYSTEM_STATUS_TABLE+1]=0;
 
 
 //push ip to idle process stack
