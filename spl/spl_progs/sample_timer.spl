@@ -1,14 +1,15 @@
+//assg2 add breakpoint start and end of timer
+breakpoint;
 //user stackptr at 13 th word  backup current proceess in kerenl
 [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
 
 //setting userpage to userpgnum*512-1
 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
 
-breakpoint;
+//bring the user contents to kernel using backup
 backup;
 //print "TIMER";
 
-//restore;
 
 //save the context of running proceess
 
@@ -22,13 +23,9 @@ process_table_entry = PROCESS_TABLE + currentPID * 16;
 [process_table_entry + 15] = PTLR;
 [process_table_entry + 4] = READY;
 
-//scheduling algo
+//scheduling algo we switch the process using %3{two process even odd then idle}
 alias newPID R2;
-if(currentPID == 0) then
-	newPID = 1;
-else
-	newPID = 0;
-endif;
+newPID=(currentPID+1)%3;
 
 
 //update register with new processcontext
@@ -42,7 +39,7 @@ PTLR = [new_process_table + 15];
 
 [SYSTEM_STATUS_TABLE + 1] = newPID;
 
-
+//if created proceess has no history to remember and thus no user context to be restored before scheduled
 //update new process states
 if([new_process_table + 4] == CREATED) then
 	[new_process_table + 4] = RUNNING;
@@ -52,7 +49,9 @@ endif;
 
 [new_process_table + 4] = RUNNING;
 
+//restore user context from kernel stack
 restore;
+
 //getback the sp
 SP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13];
 
