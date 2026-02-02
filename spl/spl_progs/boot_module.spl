@@ -22,6 +22,10 @@ loadi(23,36);
 loadi(16,29);
 loadi(17,30);
 
+//load scheduler
+loadi(50,63);
+loadi(51,64);
+
 //load exhandler
 loadi(2, 15);
 loadi(3, 16);
@@ -125,7 +129,7 @@ loadi(83,70);
 [PROCESS_TABLE + 32 + 11] = 88;
 
 //pid
-[PROCESS_TABLE + 32 ] = 3;
+[PROCESS_TABLE + 32 ] = 2;
 
 //uptr
 [PROCESS_TABLE + 32 + 13] = 8*512;
@@ -150,6 +154,16 @@ loadi(83,70);
 
 //push ip to even.xsm process stack
 [86*512] = [83*512+1];
+
+
+//setting state of all pid (other than first 3) to terminated
+alias currentPID R0;
+currentPID=3;
+while(currentPID<16)do
+    [PROCESS_TABLE+(currentPID*16)+4]=TERMINATED;
+    currentPID=currentPID+1;
+endwhile;
+
 
 //return from module to os startup
 return;

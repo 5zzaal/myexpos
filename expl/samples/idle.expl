@@ -6,7 +6,6 @@ int main()
     begin
         a=0;
         while(a<=200)do
-            //temp=exposcall("Write",-2,num);
             a=a;
         endwhile;
         return 0;
