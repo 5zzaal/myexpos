@@ -44,8 +44,8 @@ PTLR=[next_entry+15];
 
 //new process is in CREATED state Switch to the user mode using the ireturn
 if([next_entry+4]==CREATED)then
-    SP=[next_entry+13];
     [next_entry+4]= RUNNING;
+    SP=[next_entry+13];
     [next_entry+9]=0;
     ireturn;
 endif;
