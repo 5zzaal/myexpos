@@ -1,0 +1,23 @@
+alias funcname R1;
+alias currentPID R2;
+
+
+if(funcname==3)then
+    multipush(R1,R2,R3);
+    R1=8;
+    currentPID = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R1,R2,R3);
+
+    print R3;
+
+    multipush(R1,R2,R3);
+    R1=9;
+    currentPID = [SYSTEM_STATUS_TABLE + 1];
+    call MOD_0;
+    multipop(R1,R2,R3);
+
+    return;
+endif;
+
+halt;

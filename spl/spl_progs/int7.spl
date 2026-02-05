@@ -24,8 +24,7 @@ alias fileDescriptor R4;
 fileDescriptor=[fileDescPhysicalAddr];
 
 //check file descriptor
-if(fileDescriptor!=-2)
-then 
+if(fileDescriptor!=-2)then 
 //invalid ret val
 alias physcialaddrRetval R5;
 physcialaddrRetval=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
@@ -34,7 +33,18 @@ else
 //print the word and succesfull
 alias word R5;
 word=[[PTBR+2*((userSP-3)/512)]*512+((userSP-3)%512)];
-print word;
+
+//setting arg for device module
+multipush(R0,R1,R2,R3,R5);
+
+R1=3;
+R2=[SYSTEM_STATUS_TABLE+1];
+R3=word;
+
+call MOD_4;
+
+multipop(R0,R1,R2,R3,R5);
+
 alias physcialaddrRetval R6;
 physcialaddrRetval=([PTBR+2*((userSP-1)/512)]*512)+((userSP-1)%512);
 [physcialaddrRetval]=0;
