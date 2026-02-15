@@ -9,7 +9,7 @@ if(funcname==8)then
         call MOD_5;
         multipop(R1,R2);
     endwhile;
-
+ 
     [TERMINAL_STATUS_TABLE]=1;
     [TERMINAL_STATUS_TABLE+1]=currentPID;
 
@@ -42,5 +42,3 @@ if(funcname==9)then
     return;
 
 endif;
-
-halt;
