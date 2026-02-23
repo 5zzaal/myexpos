@@ -1,0 +1,46 @@
+decl
+    int n,A[100],Bubble(int last);
+enddecl
+
+int Bubble(int last){
+    decl
+        int temp,i,j;
+    enddecl
+    begin
+        i=0;
+        while(i<last)do
+            j=0;
+            while(j < (last-i))do
+                if(A[j] > A[j+1])then
+                    temp=A[j];
+                    A[j]=A[j+1];
+                    A[j+1]=temp;
+                endif;
+                j=j+1;
+            endwhile;
+            i=i+1;
+        endwhile;
+        return 0;
+    end
+}
+
+int main(){
+    decl
+        int i,r,temp;
+    enddecl
+    begin
+        i=0;
+        temp=exposcall("Read",-1,n);
+        while(i<n)do
+            temp=exposcall("Read",-1,A[i]);
+            i=i+1;
+        endwhile;
+        r=Bubble(n-1);
+        r=0;
+        while(r<n)do
+            temp=exposcall("Write",-2,A[r]);
+            r=r+1;
+        endwhile;
+        return 0;
+    end
+}
