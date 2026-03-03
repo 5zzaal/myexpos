@@ -9,12 +9,13 @@ backup;
 alias reqID R2;
 reqID = [TERMINAL_STATUS_TABLE + 1];
 alias process_table_entry R1;
+breakpoint;
 process_table_entry = PROCESS_TABLE + reqID*16;
 [process_table_entry + 8]=P0;
 multipush(R1, R2);
 R1 = 9;
 
-
+breakpoint;
 call MOD_0;
 
 

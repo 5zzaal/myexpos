@@ -14,7 +14,7 @@ currentPID = [SYSTEM_STATUS_TABLE+1];
 alias process_table_entry R1;
 process_table_entry = PROCESS_TABLE + (currentPID * 16);
 [process_table_entry + 4] = READY;
-breakpoint;
+//breakpoint;
 //incrementing the timer tick
 alias counter R3;
 counter=0;
@@ -23,7 +23,7 @@ while(counter < 16)do
 	counter=counter+1;
 endwhile;
 call MOD_5;
-breakpoint;
+//breakpoint;
 
 //restore user context from kernel stack
 restore;
