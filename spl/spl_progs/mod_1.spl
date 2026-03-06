@@ -1,0 +1,76 @@
+alias functionNum R1;
+alias currentPID R2;
+
+//free user area page
+if(functionNum==FREE_USER_AREA_PAGE)then
+    alias currentPID R2;
+
+    alias userpageNum R3;
+    userpageNum=[PROCESS_TABLE+(currentPID*16)+11];
+    multipush(R1,R2,R3);
+    //release page
+    R1=RELEASE_PAGE;
+    R2=userpageNum;
+    call MOD_2;
+    multipop(R1,R2,R3);
+
+    return;
+endif;
+
+
+
+//exit process
+if(functionNum==EXIT_PROCESS)then
+    alias currentPID R2;
+
+    multipush(R1,R2,R3);
+    //freepage table
+    R1=FREE_PAGE_TABLE;
+    R2=currentPID;
+    call MOD_1;
+    multipop(R1,R2,R3);
+   
+   //free user area page
+    multipush(R1,R2,R3);
+     R1=FREE_USER_AREA_PAGE;
+     R2=currentPID;
+    call MOD_1;
+    multipop(R1,R2,R3);
+
+    [PROCESS_TABLE+(currentPID*16)+4]=TERMINATED;
+    return;
+endif;
+
+
+
+//free page table
+if(functionNum==FREE_PAGE_TABLE)then
+    alias currentPID R2;
+    PTBR=[PROCESS_TABLE+(16*currentPID)+14];
+
+    [PTBR+0]=-1;
+    [PTBR+1]="0000";
+    [PTBR+2]=-1;
+    [PTBR+3]="0000";
+
+    alias pagetableadd R3;
+    pagetableadd=PTBR+4;
+
+    while(pagetableadd<PTBR+20)do
+        if([pagetableadd]!=-1)then
+            multipush(R1,R2,R3);
+            R1=RELEASE_PAGE;
+            R2=[pagetableadd];
+            call MOD_2;
+            multipop(R1,R2,R3);
+
+            [pagetableadd]=-1;
+            [pagetableadd+1]="0000";
+
+        endif;
+        pagetableadd=pagetableadd+2;
+
+    endwhile;
+
+    return;
+endif;
