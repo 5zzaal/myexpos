@@ -50,6 +50,11 @@ loadi(49,62);
 loadi(8,21);
 loadi(9,22);
 
+//load disk interrupt
+loadi(6,19);
+loadi(7,20);
+
+
 //load mod1:process manager
 loadi(42,55);
 loadi(43,56);
@@ -123,6 +128,16 @@ loadi(60,4);
 
 
 
+//initalise per process resourcetable
+alias resourcetable R1;
+resourcetable=80*512+RESOURCE_TABLE_OFFSET;
+R9=0;
+while(R9<16)do
+    [resourcetable+R9]=-1;
+    R9=R9+1;
+endwhile;
+
+
 //65*512 :makes it reach first code region first is header second bit is entry pint so +1
 //push ip to init process stack
 [76*512] = [65*512+1];
@@ -166,6 +181,10 @@ endwhile;
 //memfree(freepages) and memwait count(blocked)
 [SYSTEM_STATUS_TABLE+2]=freepage;
 [SYSTEM_STATUS_TABLE+3]=0;
+
+
+//disk status table
+[DISK_STATUS_TABLE+0]=0;
 
 
 //return from module to os startup

@@ -1,6 +1,6 @@
 alias functionNum R1;
 alias currentPID R2;
-//print "mod4";
+
 if(functionNum==3)then
     multipush(R1, R2, R3);
     functionNum = 8;
@@ -30,5 +30,25 @@ if(functionNum==4)then
     alias word R6;
 	word = ([PTBR + 2 * (R3 / 512)] * 512) + (R3 % 512);
     [word]=[PROCESS_TABLE + currentPID*16 + 8];
+    return;
+endif;
+
+
+if(functionNum==2)then
+    multipush(R1,R2,R3,R4,R5);
+    functionNum=3;
+    currentPID=[SYSTEM_STATUS_TABLE+1];
+    call MOD_0;
+    multipop(R1,R2,R3,R4,R5);
+    [DISK_STATUS_TABLE+0]=0;
+    [DISK_STATUS_TABLE+1]=0;
+    [DISK_STATUS_TABLE+2]=R3;
+    [DISK_STATUS_TABLE+3]=R4;
+    [DISK_STATUS_TABLE+4]=currentPID;
+    load(R3,R4);
+    [PROCESS_TABLE+(currentPID*16)+4]=WAIT_DISK;
+    multipush(  R1,R2,R3,R4,R5);
+    call MOD_5;
+    multipop(R1,R2,R3,R4,R5);
     return;
 endif;
