@@ -57,3 +57,53 @@ if(functionNum==RELEASE_PAGE)then
 endif;
 
 
+//release block function
+if(functionNum == RELEASE_BLOCK)then
+    [DISK_FREE_LIST + R2] = [DISK_FREE_LIST + R2] - 1;
+    return;
+endif;
+
+
+
+//getcode page
+
+if(functionNum == GET_CODE_PAGE)then
+    alias i R6;
+    alias j R7;
+    alias ptbr R8;
+    alias block_num R2;
+    i = 0;
+
+    //check diskmap if given block in any memory
+    while(i<16)do
+        j = 4;
+        ptbr = [PROCESS_TABLE + i*16 + 14];
+        while(j<8)do
+            if([DISK_MAP_TABLE + i*10 + j]==block_num && [ptbr + 2*j]!=-1)then
+                R0 = [ptbr + 2*j];
+                [MEMORY_FREE_LIST +R0] = [MEMORY_FREE_LIST + R0] + 1;
+                return; 
+            endif;
+            j = j+ 1;
+        endwhile;
+        i = i + 1;
+    endwhile;
+
+    //if code page not in memory invoke get free page 
+    multipush(R1, R2);
+    R1 = GET_FREE_PAGE;
+    call MOD_2;
+    multipop(R1, R2);
+    multipush(R0, R1, R2, R3);
+    R1 = DISK_LOAD;
+
+    //while calling get_code_page the R2 is set as the block number so update
+    R4 = block_num;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = R0;
+    call MOD_4;
+    multipop(R0, R1, R2, R3);
+
+    return;
+endif;
+
