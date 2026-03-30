@@ -54,6 +54,10 @@ loadi(9,22);
 loadi(6,19);
 loadi(7,20);
 
+//load fork
+loadi(18, 31);
+loadi(19, 32);
+
 //load mod1:process manager
 loadi(42,55);
 loadi(43,56);

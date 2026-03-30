@@ -84,3 +84,26 @@ if(funNo == FREE_PAGE_TABLE)then
     endwhile;
     return;
 endif;
+
+if(funNo == GET_PCB_ENTRY)then
+
+    alias pcbEntry R0;
+    pcbEntry = 0;
+
+    while(pcbEntry < 16 && [PROCESS_TABLE + 16*pcbEntry + 4] != TERMINATED)do
+        pcbEntry = pcbEntry + 1;
+    endwhile;
+    
+    //no valid PCB found
+    if(pcbEntry == 16)then
+        pcbEntry = -1;
+        return;
+    endif;
+
+    [PROCESS_TABLE + 16*pcbEntry + 4] = ALLOCATED;
+    [PROCESS_TABLE + 16*pcbEntry + 1] = pcbEntry;
+    [PROCESS_TABLE + 16*pcbEntry + 14] = PAGE_TABLE_BASE + 20*pcbEntry;
+    [PROCESS_TABLE + 16*pcbEntry + 15] = 10;
+
+    return;
+endif;

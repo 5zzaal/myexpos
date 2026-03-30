@@ -2,13 +2,16 @@
 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) +9 ] = -1;
 
 //switch to kernelstck
-alias userSP R11;
-userSP = SP;
 
 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]* 512 - 1;
 
 backup;
+
+//after backup
+alias userSP R11;
+userSP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+
 
 multipush(EIP);
 if(EC != 0 || userSP == 512*PTLR - 1)then
