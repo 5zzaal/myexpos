@@ -1,0 +1,75 @@
+alias userSP R9;
+userSP = SP;
+
+//extract the system call 
+
+alias sysNum R10;
+sysNum = [[PTBR + 2*(userSP - 5)/512] * 512 + (userSP - 5)%512];
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = sysNum;
+
+//switch to kernel stack
+
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]* 512 - 1;
+
+
+//GETPID
+if(sysNum == INT_GETPID)then                          
+    [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = [SYSTEM_STATUS_TABLE + 1];
+endif;
+
+
+//GETPPID
+if(sysNum == INT_GETPPID)then                          
+    [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 2];
+endif;
+
+
+ //WAIT
+if(sysNum == INT_WAIT)then                         
+    
+    alias pid R1;
+    pid = [[PTBR + 2*(userSP - 4)/512] * 512 + (userSP - 4)%512];
+
+    //if conditions not satisfied
+    if(pid == [SYSTEM_STATUS_TABLE + 1] || [PROCESS_TABLE + pid*16 + 4] == TERMINATED || pid<0 || pid>15)then
+        [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = -1;
+        [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;
+        SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+        ireturn;
+    endif;
+
+    //status is tuple 
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_PROCESS;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 5] = pid;
+
+    multipush(R1, R9);
+    call MOD_5;
+    multipop(R1, R9);
+
+    //return 0
+    [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = 0;
+
+endif;
+ 
+
+
+ //SIGNAL
+if(sysNum == INT_SIGNAL)then                          
+
+    alias counter R11;
+    counter = 0;
+    while(counter < 16)do
+        if([PROCESS_TABLE + counter*16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + counter*16 + 5] == [SYSTEM_STATUS_TABLE + 1])then
+            [PROCESS_TABLE + counter*16 + 4] = READY;
+        endif;
+        counter = counter + 1;
+    endwhile;
+
+endif;
+
+
+//Reset the MODE FLAG to 0 and store 0 as return value
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+ireturn;

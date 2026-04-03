@@ -10,41 +10,42 @@ loadi(64,14);
 loadi(65,7);
 loadi(66,8);
 
-//load idle program
+//load IDLE program
 loadi(69,11);
 loadi(70,12);
-
-//load int10:exit
-loadi(22,35);
-loadi(23,36);
-
-//load int7:write
-loadi(16,29);
-loadi(17,30);
 
 //load int6:read
 loadi(14,27);
 loadi(15,28);
 
+//load int7:write
+loadi(16,29);
+loadi(17,30);
+
+//load int8 fork
+loadi(18, 31);
+loadi(19, 32);
+
 //load int9:exec
 loadi(20,33);
 loadi(21,34);
 
-//load mod5:scheduler
-loadi(50,63);
-loadi(51,64);
+//load int10:exit
+loadi(22,35);
+loadi(23,36);
+
+// load int11 sync
+loadi(24, 37);
+loadi(25, 38);
+
+// load int15 shutdown
+loadi(32, 45);
+loadi(33, 46);
+
 
 //load exhandler
 loadi(2, 15);
 loadi(3, 16);
-
-//load mod0:resource module
-loadi(40,53);
-loadi(41,54);
-
-//load mod4:device module
-loadi(48,61);
-loadi(49,62);
 
 //load console interrupt
 loadi(8,21);
@@ -54,9 +55,10 @@ loadi(9,22);
 loadi(6,19);
 loadi(7,20);
 
-//load fork
-loadi(18, 31);
-loadi(19, 32);
+
+//load mod0:resource module
+loadi(40,53);
+loadi(41,54);
 
 //load mod1:process manager
 loadi(42,55);
@@ -65,6 +67,16 @@ loadi(43,56);
 //load mod2:memory manager
 loadi(44,57);
 loadi(45,58);
+
+
+//load mod4:device module
+loadi(48,61);
+loadi(49,62);
+
+
+//load mod5:scheduler
+loadi(50,63);
+loadi(51,64);
 
 
 //load inode and usertable
