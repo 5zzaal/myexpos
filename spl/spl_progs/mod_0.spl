@@ -56,3 +56,58 @@ if(funcname==3)then
     return;
 
 endif;
+
+
+
+
+
+//Acquiring semaphore
+
+if(funcname == ACQUIRE_SEMAPHORE)then
+    
+    alias index R0;
+    R0 = 0;
+
+
+//Set the PROCESS_COUNT to 1 and LOCKING_PID to -1.
+
+    while(index < MAX_SEM_COUNT)do                       
+        if([SEMAPHORE_TABLE + index*4 + 1] == 0)then
+            [SEMAPHORE_TABLE + index*4 + 1] = 1;
+            [SEMAPHORE_TABLE + index*4 + 0] = -1;
+            return;
+        endif;
+        index = index + 1;        
+    endwhile;
+
+    index = -1;                                          
+
+    return;
+endif;
+
+
+
+
+//Releasing semaphore
+
+if(funcname == RELEASE_SEMAPHORE)then
+
+    alias semID R3;
+
+    if([SEMAPHORE_TABLE + semID*4] == currentPID)then
+        [SEMAPHORE_TABLE + semID*4] = -1;
+
+        alias counter R5;
+        counter = 0;
+        while(counter < 16)do
+            if([PROCESS_TABLE + counter*16 + 4] == WAIT_SEMAPHORE && [PROCESS_TABLE + counter*16 + 5] == semID)then
+                [PROCESS_TABLE + counter*16 + 4] = READY;
+            endif;
+            counter = counter + 1;
+        endwhile;
+
+        [SEMAPHORE_TABLE + semID*4 + 1] = [SEMAPHORE_TABLE + semID*4 + 1] - 1;
+
+    endif;
+    return;
+endif;

@@ -6,11 +6,33 @@ if(funNo == FREE_USER_AREA_PAGE)then
 
     alias userpage R6;
     userpage = [PROCESS_TABLE + currPID*16 + 11];
-    multipush(R1, R2, R6);
+
+    //all semaphore released by calling release semaphore
+    alias resourceTable R7;
+    alias counter R8;
+    counter = 0;
+    resourceTable = userpage*512 + RESOURCE_TABLE_OFFSET;
+
+    while(counter < 16)do
+        if([resourceTable + counter] == SEMAPHORE)then
+            multipush(R1, R2, R6, R7, R8);
+
+            R1 = RELEASE_SEMAPHORE;
+            R3 = [resourceTable + counter + 1];
+            call MOD_0;
+            
+            multipop(R1, R2, R6, R7, R8);
+        endif;
+
+        counter = counter + 2;
+    endwhile;
+    
+    
+    multipush(R1, R2, R6,R7);
     R2 = userpage;
     R1 = RELEASE_PAGE;
     call MOD_2;
-    multipop(R1, R2, R6);
+    multipop(R1, R2, R6,R7);
     return;
 endif;
 

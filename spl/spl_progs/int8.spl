@@ -100,6 +100,28 @@ while (counter < 16) do
     counter = counter + 1;
 endwhile;
 
+
+//update for semaphore sharing copy for child and incr for parent
+
+alias newResourceTable R7;
+alias oldResourceTable R8;
+R7 = [PROCESS_TABLE + childID*16 + 11]*512 + RESOURCE_TABLE_OFFSET;
+R8 = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE  + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET;
+
+counter = 0;
+while (counter < 16) do
+    [newResourceTable + counter] = [oldResourceTable + counter];
+    [newResourceTable + counter + 1] = [oldResourceTable + counter + 1];
+
+    if([oldResourceTable + counter] == SEMAPHORE)then
+        [SEMAPHORE_TABLE + [oldResourceTable + counter + 1]*4 + 1] = [SEMAPHORE_TABLE + [oldResourceTable + counter + 1]*4 + 1] + 1;
+    endif;
+
+    counter = counter + 2;
+endwhile;
+
+
+
 //user stack contents of parent to child word by word
 counter = 0;
 while (counter < 512) do
