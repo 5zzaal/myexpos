@@ -233,5 +233,11 @@ endwhile;
 [DISK_STATUS_TABLE+0]=0;
 
 
+
+// stage22 - assg
+[DISK_STATUS_TABLE + 5] = 0;    //no of disk accs
+[DISK_STATUS_TABLE + 6] = 0;    //no of context switches
+[DISK_STATUS_TABLE + 7] = 128 - [SYSTEM_STATUS_TABLE + 2];  //max mem usge
+
 //return from module to os startup
 return;
