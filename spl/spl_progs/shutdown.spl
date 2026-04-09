@@ -1,9 +1,10 @@
+[DISK_STATUS_TABLE +6] = [DISK_STATUS_TABLE +6]+1;
 
-print "disk acc";
-print [DISK_STATUS_TABLE + 5];
+print "switch kernel";
+print [DISK_STATUS_TABLE + 6];
 
 print "cont swit";
-print [DISK_STATUS_TABLE + 6];
+print [DISK_STATUS_TABLE + 5];
 
 print "max mem";
 print [DISK_STATUS_TABLE + 7];
