@@ -14,6 +14,12 @@ loadi(66,8);
 loadi(69,11);
 loadi(70,12);
 
+
+
+// int4:createdelete file
+loadi(10, 23);
+loadi(11, 24);
+
 //load int6:read
 loadi(14,27);
 loadi(15,28);
@@ -92,6 +98,8 @@ loadi(51,64);
 loadi(59,3);
 loadi(60,4);
 
+// load root file
+loadi(62, 5);
 
 //pagetable for init
  PTBR = PAGE_TABLE_BASE+20;
@@ -150,6 +158,10 @@ loadi(60,4);
 //state
 [PROCESS_TABLE + 16 + 4] = CREATED;
 
+// user root
+[PROCESS_TABLE + 16 + 3] = 1;
+
+
 
 
 //initalise per process resourcetable
@@ -178,6 +190,29 @@ R9 = 0;
 while(R9 < 10) do
     [DISK_MAP_TABLE + 10 + R9] = -1;
     R9 = R9 + 1;
+endwhile;
+
+
+
+// initialise file status table
+R9 = 0;
+while(R9< 60) do
+    [FILE_STATUS_TABLE + R9*4 + 0] = -1;
+    [FILE_STATUS_TABLE + R9*4 + 1] = -1;
+
+    R9 = R9 + 1;
+endwhile;
+
+
+
+// initialise buffer table
+R9 = 0;
+while(R9 < 4) do
+    [BUFFER_TABLE + R9*4 + 0] = -1;
+    [BUFFER_TABLE + R9*4 + 1] = 0;
+    [BUFFER_TABLE + R9*4 + 2] = -1;
+    
+    R9= R9+ 1;
 endwhile;
 
 
@@ -234,10 +269,6 @@ endwhile;
 
 
 
-// stage22 - assg
-[DISK_STATUS_TABLE +6] = 0;    //no of kernel switches
-[DISK_STATUS_TABLE + 5] = 0;    //no of context switches
-[DISK_STATUS_TABLE + 7] = 128 - [SYSTEM_STATUS_TABLE + 2];  //max mem usge
 
 //return from module to os startup
 return;

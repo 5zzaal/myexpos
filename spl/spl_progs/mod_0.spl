@@ -111,3 +111,62 @@ if(funcname == RELEASE_SEMAPHORE)then
     endif;
     return;
 endif;
+
+
+
+
+
+//Acquire inode
+if(funcname== ACQUIRE_INODE)then
+    alias inodeIndex R3;
+    while([FILE_STATUS_TABLE + inodeIndex*4] != -1)do
+
+        [PROCESS_TABLE + currentPID*16 + 4] = WAIT_FILE;
+        [PROCESS_TABLE + currentPID*16 + 5] = inodeIndex;
+
+        multipush(R1, R2, R3, R4);
+        call MOD_5;
+        multipop(R1, R2, R3, R4);
+
+    endwhile;
+
+    if([FILE_STATUS_TABLE + inodeIndex*4] == -1 && [FILE_STATUS_TABLE + inodeIndex*4 + 1] == -1 && [FILE_STATUS_TABLE + inodeIndex*4 + 2] == -1 && [FILE_STATUS_TABLE + inodeIndex*4 + 3] == -1)then
+        R0 = -1;
+        return;
+    endif;
+
+    [FILE_STATUS_TABLE + inodeIndex*4] = currentPID;
+
+    R0 = 0;
+    return;
+endif;
+
+
+
+
+//Release inode
+if(funcname== RELEASE_INODE)then
+
+    alias inodeIndex R3;
+
+    if([FILE_STATUS_TABLE + inodeIndex*4] != currentPID)then
+        R0 = -1;
+        return;
+    endif;
+
+    [FILE_STATUS_TABLE + inodeIndex*4] = -1;
+
+    alias counter R5;
+    counter = 0;
+    while(counter < 16)do
+        if([PROCESS_TABLE + counter*16 + 4] == WAIT_FILE && [PROCESS_TABLE + counter*16 + 5] == currentPID)then
+            [PROCESS_TABLE +counter*16 + 4] = READY;
+        endif;
+        counter = counter + 1;
+    endwhile;
+
+    R0 = 0;
+    return;
+endif;
+
+return;
