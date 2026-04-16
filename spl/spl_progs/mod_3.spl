@@ -1,0 +1,193 @@
+//syscall is buffer read
+
+alias funNum R1;
+if(funNum == BUFFERED_READ)then
+
+    alias blockNum R2;
+    alias offset R3;
+    alias memAdd R4;
+
+//Buffer Number = (Disk Number % 4)
+    alias buffNum R5;
+    buffNum = blockNum%MAX_BUFFER;
+
+//acquire buffer
+    multipush(R1, R2, R3, R4, R5);
+    R1 = ACQUIRE_BUFFER;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = buffNum;
+    call MOD_0;
+    multipop(R1, R2, R3, R4, R5);
+    
+
+    //differnt disk block
+    if([BUFFER_TABLE + buffNum*4 + 0] != blockNum)then
+
+        //if dirty wrute back using disk store
+        if([BUFFER_TABLE + buffNum*4 + 1] == 1)then
+            multipush(R1, R2, R3, R4, R5);
+            R1 = DISK_STORE;
+            R2 = [SYSTEM_STATUS_TABLE + 1];
+            R3 = 71 + buffNum;
+            R4 = [BUFFER_TABLE + buffNum*4 + 0];
+            call MOD_4;
+            multipop(R1,R2, R3, R4, R5);
+        endif;
+
+        [BUFFER_TABLE + buffNum*4 + 1] = 0; //dirty reset
+
+        //load the required  block into buffer using disk load
+        multipush(R1, R2, R3, R4, R5);
+        R1 = DISK_LOAD;
+        R4 = blockNum;
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        R3 = 71 + buffNum;
+        call MOD_4;
+        multipop(R1,R2, R3, R4, R5);
+
+        [BUFFER_TABLE + buffNum*4 + 0] = blockNum;//new 
+
+    endif;
+    
+    
+    //Copy the contents in the offset location in the buffer to the physical address given as input; 
+    [memAdd] = [(71 + buffNum)*512 + offset];
+
+    //release the buffer
+    multipush(R1, R2, R3, R4, R5);
+    R1 = RELEASE_BUFFER;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = buffNum;
+    call MOD_0;
+    multipop(R1, R2, R3, R4, R5);
+
+    return;
+endif;
+
+
+
+
+
+//func name 4 close
+if(funNum == CLOSE)then
+
+//find the idex from open table and decr count
+    alias inodeIndex R4;
+    alias fileIndex R2;
+    inodeIndex = [OPEN_FILE_TABLE + fileIndex*4 + 0];
+    [OPEN_FILE_TABLE + fileIndex*4 + 1] = [OPEN_FILE_TABLE + fileIndex*4 + 1] - 1;
+
+    if([OPEN_FILE_TABLE + fileIndex*4 + 1] == 0)then
+
+    //if open instance become 0 then invalidate the entry
+        [OPEN_FILE_TABLE + fileIndex*4 + 0] = -1;
+        [OPEN_FILE_TABLE + fileIndex*4 + 1] = -1;
+        [OPEN_FILE_TABLE + fileIndex*4 + 2] = -1;
+        [OPEN_FILE_TABLE + fileIndex*4 + 3] = -1;
+
+        if(inodeIndex != INODE_ROOT)then
+        //decrement the file count
+            [FILE_STATUS_TABLE + inodeIndex*4 + 1] = [FILE_STATUS_TABLE + inodeIndex*4 + 1] - 1;
+
+            //if file count zero set to -1
+            if([FILE_STATUS_TABLE + inodeIndex*4 + 1] == 0)then
+                [FILE_STATUS_TABLE + inodeIndex*4 + 1] = -1;
+            endif;
+        endif;
+    endif;  
+endif;
+
+
+
+
+
+//func number is 3  open
+if(funNum == OPEN)then
+
+
+    //update open file table and file status table
+    alias inodeIndex R5;
+    alias FileName R2;
+
+    inodeIndex = 0;
+    while(inodeIndex < MAX_FILE_NUM && [INODE_TABLE + inodeIndex*16 + 1] != FileName)do
+        inodeIndex = inodeIndex + 1;
+    endwhile;
+
+    //if file not found return -1
+    if(inodeIndex == MAX_FILE_NUM)then
+        R0 = -1;
+        return;
+    endif;
+    
+    //call acquire inode
+    multipush(R0, R1, R2, R3, R4, R5);
+    R1 = ACQUIRE_INODE;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = inodeIndex;
+    call MOD_0;
+    R10 = R0;
+    multipop(R0, R1, R2, R3, R4, R5);
+
+    //if locking fails return -1
+    if(R10 == -1)then
+        R0 = -1;
+        //breakpoint;
+        
+   
+    else
+         //if file is exec return -1
+        if([INODE_TABLE + inodeIndex*16 + 0] == EXEC)then
+            R0 = -1;
+
+        else
+        //find entry in openfile table
+            alias fileIndex R6;
+            fileIndex = 0;
+            while(fileIndex < MAX_OPENFILE_NUM)do
+                if([OPEN_FILE_TABLE + fileIndex*4 + 0] == -1)then
+                    break;
+                endif;
+                fileIndex = fileIndex + 1;
+            endwhile;
+
+        //if no free entry return -2
+            if(fileIndex == MAX_OPENFILE_NUM)then
+                R0 = -2;
+
+            else
+                if(FileName =="root")then
+                    [OPEN_FILE_TABLE + fileIndex*4 + 0] = INODE_ROOT;
+
+                else
+                //file open count increment
+                    if([FILE_STATUS_TABLE + inodeIndex*4 + 1] == -1)then
+                        [FILE_STATUS_TABLE + inodeIndex*4 + 1] = 1;
+                    else
+                        [FILE_STATUS_TABLE + inodeIndex*4 + 1] = [FILE_STATUS_TABLE + inodeIndex*4 + 1] + 1;
+                    endif;
+
+                    [OPEN_FILE_TABLE + fileIndex*4 + 0] = inodeIndex;
+                endif;
+
+
+                [OPEN_FILE_TABLE + fileIndex*4 + 1] = 1;    //count
+                [OPEN_FILE_TABLE + fileIndex*4 + 2] = 0;    //lseek
+                
+                R0 = fileIndex;
+            endif;
+        endif;
+    endif;
+    
+    //call release inode
+
+    multipush(R0, R1, R2, R3, R4, R5);
+    R1 = RELEASE_INODE;
+    R2 = [SYSTEM_STATUS_TABLE + 1];
+    R3 = inodeIndex;
+    call MOD_0;
+    R10 = R0;
+    multipop(R0, R1, R2, R3, R4, R5);
+endif;
+
+return;

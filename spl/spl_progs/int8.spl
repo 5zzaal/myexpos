@@ -117,6 +117,10 @@ while (counter < 16) do
         [SEMAPHORE_TABLE + [oldResourceTable + counter + 1]*4 + 1] = [SEMAPHORE_TABLE + [oldResourceTable + counter + 1]*4 + 1] + 1;
     endif;
 
+    if([oldResourceTable + counter] == FILE)then
+        [OPEN_FILE_TABLE + [oldResourceTable + counter + 1]*4 + 1] = [OPEN_FILE_TABLE + [oldResourceTable + counter*4 + 1]] + 1;
+    endif;
+    
     counter = counter + 2;
 endwhile;
 

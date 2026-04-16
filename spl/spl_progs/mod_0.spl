@@ -170,3 +170,62 @@ if(funcname== RELEASE_INODE)then
 endif;
 
 return;
+
+
+
+
+
+if(funcname == RELEASE_BUFFER)then
+
+    alias buffNum R3;
+
+    //if pid not equal to locking pid
+    if(currentPID != [BUFFER_TABLE + buffNum*4 + 2])then
+        R0 = -1;
+        return;
+    endif;
+
+//free the lock in buffer table
+    [BUFFER_TABLE + buffNum*4 + 2] = -1;
+
+
+//loop through process table and set ready
+    alias counter R5;
+    counter = 0;
+    while(counter<16)do
+        if([PROCESS_TABLE + counter*16 + 4] == WAIT_BUFFER && [PROCESS_TABLE + counter*16 + 5] == buffNum)then
+            [PROCESS_TABLE + counter*16 + 4] = READY;
+        endif;
+        counter = counter + 1;
+    endwhile;
+
+    R0 = 0;
+    return;
+endif;
+
+
+
+
+
+
+if(funcname == ACQUIRE_BUFFER)then
+
+    alias buffNum R3;
+
+    //while buffer is locked
+    while([BUFFER_TABLE + buffNum*4 + 2] != -1)do
+
+        [PROCESS_TABLE + currentPID*16 + 4] = WAIT_BUFFER;
+        [PROCESS_TABLE + currentPID*16 + 5] = buffNum;
+
+        multipush(R1, R2, R3);
+        call MOD_5;
+        multipop(R1, R2, R3);
+    endwhile;
+
+    //lock the buffer
+    [BUFFER_TABLE + buffNum*4 + 2] = currentPID;    
+
+    return;
+endif;
+return;
