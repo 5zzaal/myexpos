@@ -108,6 +108,9 @@ loadi(60,4);
 // load root file
 loadi(62, 5);
 
+// disk free list
+loadi(61, 2);
+
 //pagetable for init
  PTBR = PAGE_TABLE_BASE+20;
  PTLR=10;
@@ -177,7 +180,7 @@ resourcetable=80*512+RESOURCE_TABLE_OFFSET;
 R9=0;
 while(R9<16)do
     [resourcetable+R9]=-1;
-    R9=R9+1;
+    R9=R9+2;
 endwhile;
 
 

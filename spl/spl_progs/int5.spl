@@ -1,5 +1,3 @@
-//switch stacks
-
 alias userSP R9;
 userSP = SP;
 
@@ -10,21 +8,18 @@ sysNum = [[PTBR + 2*(userSP - 5)/512] * 512 + (userSP - 5)%512];
 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]* 512 - 1;
 
+alias returnAdd R11;
+returnAdd = [PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512;
 
 //OPEN SYSCALL
+if(sysNum == INT_OPEN)then
 
-
-if(sysNum == 2)then
-
-    //find free perprocessentry
     alias processTable R3;
     processTable = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET;
 
     alias processTableEntry R4;
     processTableEntry = 0;
 
-
-    //if resource id ==-1 free
     while(processTableEntry < 8)do
         if([processTable + 2*processTableEntry] == -1)then
             break;
@@ -32,73 +27,131 @@ if(sysNum == 2)then
         processTableEntry = processTableEntry + 1;
     endwhile;
 
-
-
-    //no free entry return -3
     if(processTableEntry == 8)then
-        [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = -3;
+        [returnAdd] = -3;
     else
 
-
-        //call open func from file mangr
-        multipush(R3, R9, R10);
+        multipush(R3, R4, R9, R11);
         R1 = OPEN;
         R2 = [[PTBR + 2*(userSP - 4)/512] * 512 + (userSP - 4)%512];
         call MOD_3;
-        multipop(R3, R9, R10);
-
+        multipop(R3, R4, R9, R11);
+        
+        breakpoint;
         if(R0 < 0)then
-            [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = R0;
+            [returnAdd] = R0;
         else
             [processTable + processTableEntry*2] = FILE;
             [processTable + processTableEntry*2 + 1] = R0;
-            [[PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512] = 0;
+            [returnAdd] = R4;
         endif;
+        breakpoint;
     endif;
 endif;  
 
 
-
-
-
 //CLOSE SYSCALL
-if(sysNum == 3)then
+if(sysNum == INT_CLOSE)then
 
     alias fileDescriptor R2;
     fileDescriptor = [[PTBR + 2*(userSP - 4)/512] * 512 + (userSP - 4)%512];
 
-
-    //if file descprter invalid return -1
     if(fileDescriptor <0 || fileDescriptor > 7)then
-        [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = -1;
+        [returnAdd] = -1;
     else
 
         alias processTable R3;
         processTable = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET;
 
-        //if not FILE return -1
         if([processTable + fileDescriptor*2] != FILE)then
-            [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = -1;
-
-
+            [returnAdd] = -1;
         else
-
-        //get index of open file table from the perprocesstable
             alias fileIndex R4;
             fileIndex = [processTable + fileDescriptor*2 + 1];
 
-        //call the close func from file module
-            multipush(R2, R3, R4);
+            multipush(R2, R3, R4, R9, R11);
             R1 = CLOSE;
             R2 = fileIndex;
             call MOD_3;
-            multipop(R2, R3, R4);
+            multipop(R2, R3, R4, R9, R11);
 
-            ///invalidate the entry
             [processTable + fileDescriptor*2] = -1;
-            [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = 0;
+            [returnAdd] = 0;
         endif;
         
+    endif;
+endif;
+
+//SEEK
+
+if(sysNum == INT_SEEK)then
+    alias fileDescriptor R2;
+    fileDescriptor = [[PTBR + 2*(userSP - 4)/512] * 512 + (userSP - 4)%512];
+
+    if(fileDescriptor <0 || fileDescriptor > 7)then
+        [returnAdd] = -1;
+    else
+        alias processTable R3;
+        processTable = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET;
+
+        if([processTable + fileDescriptor*2] == -1)then
+            [returnAdd] = -1;
+        else
+
+            alias fileIndex R4;
+            alias inodeIndex R5;
+
+            fileIndex = [processTable + fileDescriptor*2 + 1];
+            inodeIndex = [OPEN_FILE_TABLE + fileIndex*4 + 0];
+
+            multipush(R1, R2, R3, R4, R5, R9, R11);
+            R1 = ACQUIRE_INODE;
+            R2 = [SYSTEM_STATUS_TABLE + 1];
+            R3 = inodeIndex;
+            call MOD_0;
+            multipop(R1, R2, R3, R4, R5, R9, R11);
+            
+
+            if(R0 == -1)then
+                [returnAdd] = -1;
+            else
+                alias lSeek R6;
+                lSeek = OPEN_FILE_TABLE + fileIndex*4 + 2;
+
+                alias fileSize R7;
+                fileSize = [INODE_TABLE + inodeIndex*16 + 2];
+                if(inodeIndex == INODE_ROOT)then
+                    fileSize = 480;
+                endif;
+
+                alias offSet R8;
+                offSet = [[PTBR + 2*(userSP - 3)/512]*512 + (userSP - 3)%512];
+
+                if([lSeek] + offSet<0)then
+                    [returnAdd] = -2;
+                else
+                    if(offSet == 0)then
+                        [lSeek] = 0;
+                    else
+                        if([lSeek] + offSet>fileSize)then
+                            [lSeek] = fileSize;
+                        else
+                            [lSeek] = [lSeek] + offSet;
+                        endif;
+                    endif;
+
+                    [returnAdd] = 0;
+
+                endif;
+                multipush(R1, R2, R3, R4, R5, R9, R11);
+                R1 = RELEASE_INODE;
+                R2 = [SYSTEM_STATUS_TABLE + 1];
+                R3 = inodeIndex;
+                call MOD_0;
+                multipop(R1, R2, R3, R4, R5, R9, R11);
+
+            endif;
+        endif;
     endif;
 endif;
 
