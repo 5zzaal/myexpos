@@ -1,0 +1,48 @@
+alias userSP R0;
+userSP = SP;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = INT_LOGOUT;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13] = SP;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 11]* 512 - 1;
+
+alias returnAdd R1;
+returnAdd = [PTBR + 2*(userSP - 1)/512]*512 + (userSP - 1)%512;
+
+//if current process not shell
+if([SYSTEM_STATUS_TABLE + 1] != 2)then
+    [returnAdd] = -1;
+    goto exit;
+endif;
+
+//kill all except the shell
+multipush(R0, R1);
+R1 = KILL_ALL;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_1;
+multipop(R0, R1);
+
+//set state as terminated
+[PROCESS_TABLE + 2*16 + 4] = TERMINATED;
+
+
+//Shell should be set ready to run when the next user logs in
+[[PTBR + 16]*512] = [[PTBR + 8]*512 + 1];
+[PROCESS_TABLE + 2*16 + 13] = 8*512;
+
+//wakeup login by setting it ready
+[PROCESS_TABLE + 16 + 4] = READY;
+
+//reset current userid to kernel(0)
+[SYSTEM_STATUS_TABLE] = 0;
+
+//context switch
+multipush(R0, R1);
+call MOD_5;
+multipop(R0, R1);
+
+
+exit: 
+	SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13];
+	[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+
+ireturn;
