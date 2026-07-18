@@ -1,121 +1,119 @@
 alias funNo R1;
 alias currPID R2;
 
-//free userarea page
 if(funNo == FREE_USER_AREA_PAGE)then
 
     alias userpage R6;
+    alias resourceTable R7;
     userpage = [PROCESS_TABLE + currPID*16 + 11];
 
-    //all semaphore released by calling release semaphore
-    alias resourceTable R7;
     alias counter R8;
     counter = 0;
     resourceTable = userpage*512 + RESOURCE_TABLE_OFFSET;
 
     while(counter < 16)do
-        if([resourceTable + counter] == SEMAPHORE)then
-            multipush(R1, R2, R6, R7, R8);
 
+        if([resourceTable + counter] == SEMAPHORE)then
+
+            multipush(R1, R2, R6, R7, R8);
             R1 = RELEASE_SEMAPHORE;
+            R2 = currPID;
             R3 = [resourceTable + counter + 1];
             call MOD_0;
-            
             multipop(R1, R2, R6, R7, R8);
+            
         endif;
 
         if([resourceTable + counter] == FILE)then
-            multipush(R1, R2, R6, R7, R8);
 
+            multipush(R1, R2, R6, R7, R8);
             R1 = CLOSE;
             R2 = [resourceTable + counter + 1];
             call MOD_3;
-            
             multipop(R1, R2, R6, R7, R8);
-
+            
         endif;
-        
         counter = counter + 2;
     endwhile;
-
     
-    multipush(R1, R2, R6,R7);
+
+    multipush(R1, R2, R6, R7);
+
     R2 = userpage;
     R1 = RELEASE_PAGE;
     call MOD_2;
-    multipop(R1, R2, R6,R7);
+
+    multipop(R1, R2, R6, R7);
     return;
+
 endif;
-
-
-//exit process
 if(funNo == EXIT_PROCESS) then
     multipush(R1, R2);
 
-    //freeing the pagetable entries.
     R1 = FREE_PAGE_TABLE;
     call MOD_1;
 
-    //freeing the userareapage of the program.
     R1 = FREE_USER_AREA_PAGE;
     call MOD_1;
 
     multipop(R1, R2);
-    
-    // wake all processes waiting for this process (only if this is not called by exec)
-    if([PROCESS_TABLE + currPID*16 +9] != 9) then   
-    
-        alias i R7;
-        i=0;
-        while(i<MAX_PROC_NUM) do
-            if(([PROCESS_TABLE + (i*16) + 4] == WAIT_PROCESS) && [PROCESS_TABLE + (i*16) + 5] == currPID) then
-                [PROCESS_TABLE + (i*16) + 4] = READY;
+
+    if([PROCESS_TABLE + currPID*16 + 9] != 9)then
+
+        alias counter R7;
+        counter = 0;
+        while(counter < 16)do
+            if([PROCESS_TABLE + counter*16 + 4] == WAIT_PROCESS && [PROCESS_TABLE + counter*16 + 5] == currPID)then
+                [PROCESS_TABLE + counter*16 + 4] = READY;
             endif;
-
-            if(([PROCESS_TABLE + (i*16) + 2] == currPID)) then
-                [PROCESS_TABLE + (i*16) + 2] = -1;
-            endif; 
-
-            i=i+1;
+            if([PROCESS_TABLE + counter*16 + 2] ==  currPID)then
+                [PROCESS_TABLE + counter*16 + 2] = -1;
+            endif;
+            counter = counter + 1;
         endwhile;
-    endif;
 
+    endif;
 
     [PROCESS_TABLE + currPID*16 + 4]=TERMINATED;
 
     return;
 endif;
 
-//free pagetable
-
 if(funNo == FREE_PAGE_TABLE)then
+
+    PTBR = PAGE_TABLE_BASE + 20*currPID;
+
+    [PTBR + 0] = -1;
+    [PTBR + 1] = "0000";
+    [PTBR + 2] = -1;
+    [PTBR + 3] = "0000";
+
     alias page R7;
     alias auxilary R8;
     page = 4;
     auxilary = 5;
+
     while(page < 20)do
+         if([PAGE_TABLE_BASE + 20*currPID + page]!=-1)then
+            
+            multipush(R1, R2, R7, R8);
+            R1 = RELEASE_PAGE;
+            R2 = [PAGE_TABLE_BASE + 20*currPID + page];
+            call MOD_2;
+            multipop(R1, R2, R7, R8);
 
-        //releasing  and invalidate the page
+            [PAGE_TABLE_BASE + 20*currPID + page] = -1;
+            [PAGE_TABLE_BASE + 20*currPID + auxilary] = "0000";
 
-        multipush(R1, R2, R7, R8);
-        R1 = RELEASE_PAGE;
-        R2 = [PAGE_TABLE_BASE + 20*currPID + page];
-        call MOD_2;
-        multipop(R1, R2, R7, R8);
+        endif;
 
-        //invalidating the entries in page table
-        [PAGE_TABLE_BASE + 20*currPID + page] = -1;
-        [PAGE_TABLE_BASE + 20*currPID + auxilary] = "0000";
         page = page + 2;
         auxilary = auxilary + 2;
-
     endwhile;
-
 
     alias counter R6;
     counter = 2;
     while(counter<10)do
-        // go through heap and stack of diskmap if valid release block
 
         if([DISK_MAP_TABLE + currPID*10 + counter]!=-1 && (counter < 4 || counter > 7))then
             multipush(R1, R2, R3, R4, R5, R6);
@@ -124,22 +122,19 @@ if(funNo == FREE_PAGE_TABLE)then
             call MOD_2;
             multipop(R1, R2, R3, R4, R5, R6);
         endif;
-        counter = counter + 1;
 
+        counter = counter + 1;
     endwhile;
 
-
-    //invalidate all entries of disk map table.
     counter = 0;
     while(counter<10)do
-         [DISK_MAP_TABLE + currPID*10 + counter] = -1;
+        [DISK_MAP_TABLE + counter] = -1;
         counter = counter + 1;
     endwhile;
+
     return;
 endif;
 
-
-//get pcb
 if(funNo == GET_PCB_ENTRY)then
 
     alias pcbEntry R0;
@@ -149,7 +144,6 @@ if(funNo == GET_PCB_ENTRY)then
         pcbEntry = pcbEntry + 1;
     endwhile;
     
-    //no valid PCB found
     if(pcbEntry == 16)then
         pcbEntry = -1;
         return;
@@ -164,20 +158,15 @@ if(funNo == GET_PCB_ENTRY)then
 endif;
 
 
-
-
-//kill all
-
 if(funNo == KILL_ALL)then
 
     alias counter R3;
     counter = 0;
     while(counter < 60)do
-
-        //lock inode
         if([INODE_TABLE + counter*16 + 1] != -1)then
             multipush(R1, R2, R3);
             R1 = ACQUIRE_INODE;
+            R2 = currPID;
             R3 = counter;
             call MOD_0;
             multipop(R1, R2, R3);
@@ -185,28 +174,24 @@ if(funNo == KILL_ALL)then
         counter = counter + 1;
     endwhile;
     
-    //for each pid from 2 (0 idle 1 init)
     counter = 2;
-    while(counter < 16)do
-
-        //not curr pid and not terminated call exit
+    while(counter < 15)do
         if(counter != currPID && [PROCESS_TABLE + counter*16 + 4] != TERMINATED)then
-            multipush(R1, R2, R3);
+            multipush(R1, R2, R3, PTBR);
             R1 = EXIT_PROCESS;
             R2 = counter;
             call MOD_1;
-            multipop(R1, R2, R3);
+            multipop(R1, R2, R3, PTBR);
         endif;
         counter = counter + 1;
     endwhile;
     
-
-    //for each entry in inode release lock
     counter = 0;
     while(counter < 60)do
         if([INODE_TABLE + counter*16 + 1] != -1)then
             multipush(R1, R2, R3);
             R1 = RELEASE_INODE;
+            R2 = currPID;
             R3 = counter;
             call MOD_0;
             multipop(R1, R2, R3);

@@ -1,38 +1,54 @@
 int main(){
-    decl 
-        int fd1,fd2,temp;
-        string fileName1,fileName2,word;
+    decl
+        str File1, File2, file, data, i;
+        int temp, permission, fd1, fd2, root;
     enddecl
-    begin
-        temp = exposcall("Write",-2,"File1Name : ");
-        temp = exposcall("Read",-1,fileName1);
-        temp = exposcall("Write",-2,"File2Name : ");
-        temp = exposcall("Read",-1,fileName2);
 
-        fd1 = exposcall("Open",fileName1);
-        if(fd1 < 0) then
-            temp = exposcall("Write",-2,"error");
+    begin
+        write("Filename: ");
+        read(File1);
+        fd1 = exposcall("Open", File1);
+        if(fd1 < 0)then
+            write("Can't Open");
         else
-            temp = exposcall("Create",fileName2,1);
-            if(temp == -1) then
-                temp = exposcall("Write",-2,"noSpace");
-            else
-                fd2 = exposcall("Open",fileName2);
-                if(fd2 < 0) then
-                    temp = exposcall("Write",-2,"error");
+            write("Filename2: ");
+            read(File2);
+            fd2 = exposcall("Open", File2);
+            if(fd2>=0)then
+                write("Already");
+                root = exposcall("Open", "root");
+
+                while(temp == -2)do
+                    temp = exposcall("Read", root, i);
+                    if(i==File2)then
+                        temp = exposcall("Lseek", root, 3);
+                        temp = exposcall("Read", root, permission);
+                        break;
+                    endif;
+                    temp = exposcall("Lseek", root, 7);
+                endwhile;
+
+                temp = exposcall("Delete", File2);
+                if(temp<0)then
+                    write("Denied");
                 else
-                    while(1 == 1) do
-                        temp = exposcall("Read",fd1,word);
-                        if(temp == -2) then
-                            break;
-                        endif;
-                        temp = exposcall("Write",fd2,word);
+                    temp = exposcall("Create", File2, permission);
+                    fd2 = exposcall("Open", File2);
+                    while(temp == -2)do
+                        temp = exposcall("Read", fd1, data);
+                        temp = exposcall("Write", fd2, data);
                     endwhile;
-                    temp = exposcall("Close",fd2);
                 endif;
+            else    
+                write("Created");
+                temp = exposcall("Create", File2, 0);
+                fd2 = exposcall("Open", File2);
+                while(temp == -2)do
+                    temp = exposcall("Read", fd1, data);
+                    temp = exposcall("Write", fd2, data);
+                endwhile;
             endif;
-            temp = exposcall("Close",fd1);
         endif;
-        return 0;
+    return 0;
     end
 }

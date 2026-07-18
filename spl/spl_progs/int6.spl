@@ -13,17 +13,16 @@ alias returnAdd R10;
 returnAdd = [PTBR + 2 * (userSP - 1) / 512] * 512 + (userSP - 1) % 512;
 
 if(fileDescriptor == -1)then
-
     alias word R5;
     word = [([PTBR + 2 * ((userSP - 3) / 512)] * 512) + ((userSP - 3) % 512)];
-
+    
     multipush(R0, R1, R2, R5, R10);
     R1 = 4;
     R2 = [SYSTEM_STATUS_TABLE + 1];
     R3 = word;
     call MOD_4;
     multipop(R0, R1, R2, R5, R10);
-	
+
     [returnAdd] = 0;
 else
     
@@ -48,10 +47,10 @@ else
             R2 = [SYSTEM_STATUS_TABLE + 1];
             R3 = inodeIndex;
             call MOD_0;
-            R10 = R0;
+            R11 = R0;
             multipop(R0, R1, R2, R3, R4, R5, R10);
 
-            if(R10 == -1)then
+            if(R11 == -1)then
                 [returnAdd] = -1;
             else
                 alias lSeek R7;
@@ -75,13 +74,13 @@ else
                         [returnAdd] = -2;
                     else
 
-                        multipush(R0, R1, R2, R3, R4, R5, R6, R7, R8, R9);
+                        multipush(R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10);
                         R1 = BUFFERED_READ;
                         R2 = [INODE_TABLE + inodeIndex*16 + 8 + [lSeek]/512];
                         R3 = [lSeek]%512;
                         R4 = phyAdd;
                         call MOD_3;
-                        multipop(R0, R1, R2, R3, R4, R5, R6, R7, R8, R9);
+                        multipop(R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10);
 
                         [lSeek] = [lSeek] + 1;
                         [returnAdd] = 0;

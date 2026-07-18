@@ -1,17 +1,14 @@
-//syscall is buffer read
-
 alias funNum R1;
+
 if(funNum == BUFFERED_READ)then
 
     alias blockNum R2;
-    alias offset R3;
+    alias offSet R3;
     alias memAdd R4;
-
-//Buffer Number = (Disk Number % 4)
     alias buffNum R5;
+
     buffNum = blockNum%MAX_BUFFER;
 
-//acquire buffer
     multipush(R1, R2, R3, R4, R5);
     R1 = ACQUIRE_BUFFER;
     R2 = [SYSTEM_STATUS_TABLE + 1];
@@ -19,13 +16,9 @@ if(funNum == BUFFERED_READ)then
     call MOD_0;
     multipop(R1, R2, R3, R4, R5);
     
-
-    //differnt disk block
     if([BUFFER_TABLE + buffNum*4 + 0] != blockNum)then
 
-        //if dirty wrute back using disk store
         if([BUFFER_TABLE + buffNum*4 + 1] == 1)then
-
 
             multipush(R1, R2, R3, R4, R5);
             R1 = DISK_STORE;
@@ -34,11 +27,11 @@ if(funNum == BUFFERED_READ)then
             R4 = [BUFFER_TABLE + buffNum*4 + 0];
             call MOD_4;
             multipop(R1,R2, R3, R4, R5);
-            [BUFFER_TABLE + buffNum*4 + 1] = 0; //dirty reset
-        
-           endif;
 
-        //load the required  block into buffer using disk load
+            [BUFFER_TABLE + buffNum*4 + 1] = 0;
+        endif;
+
+
         multipush(R1, R2, R3, R4, R5);
         R1 = DISK_LOAD;
         R4 = blockNum;
@@ -47,85 +40,59 @@ if(funNum == BUFFERED_READ)then
         call MOD_4;
         multipop(R1,R2, R3, R4, R5);
 
-        [BUFFER_TABLE + buffNum*4 + 0] = blockNum;//new 
+        [BUFFER_TABLE + buffNum*4 + 0] = blockNum;
 
     endif;
     
-    
-    //Copy the contents in the offset location in the buffer to the physical address given as input; 
-    [memAdd] = [(71 + buffNum)*512 + offset];
+    [memAdd] = [(71 + buffNum)*512 + offSet];
 
-    //release the buffer
-    multipush(R1, R2, R3, R4, R5);
     R1 = RELEASE_BUFFER;
     R2 = [SYSTEM_STATUS_TABLE + 1];
     R3 = buffNum;
     call MOD_0;
-    multipop(R1, R2, R3, R4, R5);
 
     return;
 endif;
 
-
-
-
-
-//func name 4 close
 if(funNum == CLOSE)then
 
-//find the idex from open table and decr count
     alias inodeIndex R4;
     alias fileIndex R2;
+
     inodeIndex = [OPEN_FILE_TABLE + fileIndex*4 + 0];
     [OPEN_FILE_TABLE + fileIndex*4 + 1] = [OPEN_FILE_TABLE + fileIndex*4 + 1] - 1;
-
+    
     if([OPEN_FILE_TABLE + fileIndex*4 + 1] == 0)then
-
-    //if open instance become 0 then invalidate the entry
         [OPEN_FILE_TABLE + fileIndex*4 + 0] = -1;
         [OPEN_FILE_TABLE + fileIndex*4 + 1] = -1;
         [OPEN_FILE_TABLE + fileIndex*4 + 2] = -1;
         [OPEN_FILE_TABLE + fileIndex*4 + 3] = -1;
 
         if(inodeIndex != INODE_ROOT)then
-        //decrement the file count
             [FILE_STATUS_TABLE + inodeIndex*4 + 1] = [FILE_STATUS_TABLE + inodeIndex*4 + 1] - 1;
-
-            //if file count zero set to -1
             if([FILE_STATUS_TABLE + inodeIndex*4 + 1] == 0)then
                 [FILE_STATUS_TABLE + inodeIndex*4 + 1] = -1;
             endif;
         endif;
+        
     endif;  
 endif;
 
-
-
-
-
-
-
-
-//func number is 3  open
 if(funNum == OPEN)then
 
-
-    //update open file table and file status table
     alias inodeIndex R5;
     alias FileName R2;
-
+    
     inodeIndex = 0;
     while(inodeIndex < MAX_FILE_NUM && [INODE_TABLE + inodeIndex*16 + 1] != FileName)do
         inodeIndex = inodeIndex + 1;
     endwhile;
 
-    //if file not found return -1
     if(inodeIndex == MAX_FILE_NUM)then
         R0 = -1;
         return;
     endif;
     
-    //call acquire inode
     multipush(R0, R1, R2, R3, R4, R5);
     R1 = ACQUIRE_INODE;
     R2 = [SYSTEM_STATUS_TABLE + 1];
@@ -134,23 +101,17 @@ if(funNum == OPEN)then
     R10 = R0;
     multipop(R0, R1, R2, R3, R4, R5);
 
-    //if locking fails return -1
     if(R10 == -1)then
         print "no inode";
         R0 = -1;
-        //breakpoint;
-        
-   
     else
-         //if file is exec return -1
         if([INODE_TABLE + inodeIndex*16 + 0] == EXEC)then
             print "exec";
             R0 = -1;
-
         else
-        //find entry in openfile table
             alias fileIndex R6;
             fileIndex = 0;
+
             while(fileIndex < MAX_OPENFILE_NUM)do
                 if([OPEN_FILE_TABLE + fileIndex*4 + 0] == -1)then
                     break;
@@ -158,11 +119,10 @@ if(funNum == OPEN)then
                 fileIndex = fileIndex + 1;
             endwhile;
 
-        //if no free entry return -2
             if(fileIndex == MAX_OPENFILE_NUM)then
                 R0 = -2;
-
             else
+
                 alias fileTable R7;
                 alias openFileTable R8;
                 fileTable = FILE_STATUS_TABLE + inodeIndex*4;
@@ -171,41 +131,29 @@ if(funNum == OPEN)then
                 if(FileName =="root")then
                     [openFileTable + 0] = INODE_ROOT;
                 else
-                //file open count increment
                     if([fileTable + 1] == -1)then
-                       [fileTable + 1] = 1;
+                        [fileTable + 1] = 1;
                     else
                         [fileTable + 1] = [fileTable + 1] + 1;
                     endif;
-
-                   [openFileTable + 0] = inodeIndex;
+                    [openFileTable + 0] = inodeIndex;
                 endif;
 
-
-                [openFileTable + 1] = 1;             //count
-               [openFileTable + 2] = 0;              //lseek
+                [openFileTable + 1] = 1;
+                [openFileTable + 2] = 0;
                 
                 R0 = fileIndex;
             endif;
         endif;
+
+        multipush(R0);
+        R1 = RELEASE_INODE;
+        R2 = [SYSTEM_STATUS_TABLE + 1];
+        R3 = inodeIndex;
+        call MOD_0;
+        multipop(R0);
     endif;
-    
-    //call release inode
-
-    multipush(R0);
-    R1 = RELEASE_INODE;
-    R2 = [SYSTEM_STATUS_TABLE + 1];
-    R3 = inodeIndex;
-    call MOD_0;
-    R10 = R0;
-    multipop(R0);
 endif;
-
-
-
-
-
-//if syscall is bufferwrite
 
 if(funNum == BUFFERED_WRITE)then
     alias blockNum R2;
@@ -213,7 +161,6 @@ if(funNum == BUFFERED_WRITE)then
     alias word R4;
     alias buffNum R5;
 
-    //identify buffer
     buffNum = blockNum%MAX_BUFFER;
 
     alias buffTable R6;
@@ -226,10 +173,8 @@ if(funNum == BUFFERED_WRITE)then
     call MOD_0;
     multipop(R1, R2, R3, R4, R5, R6);
 
-    //if buffer contain different block
     if([buffTable + 0] != blockNum)then
         
-        //write back if dirty
         if([buffTable + 1] == 1)then
 
             multipush(R1, R2, R3, R4, R5, R6);
@@ -243,7 +188,6 @@ if(funNum == BUFFERED_WRITE)then
             [buffTable + 1] = 0;
         endif;
 
-        //load the required disk into buffer using disk load
         multipush(R1, R2, R3, R4, R5, R6);
         R1 = DISK_LOAD;
         R4 = blockNum;
@@ -252,23 +196,17 @@ if(funNum == BUFFERED_WRITE)then
         call MOD_4;
         multipop(R1, R2, R3, R4, R5, R6);
 
-        //set the new disk block number in buffer table
         [buffTable + 0] = blockNum;
 
     endif;
 
-
-    //write the contents of word as input into offset location in buffer
     [(71 + buffNum)*512 + offSet] = word;
     [buffTable + 1] = 1;
 
-    //release buffer
-    multipush(R2, R3, R4, R5, R6);
     R1 = RELEASE_BUFFER;
     R2 = [SYSTEM_STATUS_TABLE + 1];
     R3 = buffNum;
     call MOD_0;
-    multipop(R2, R3, R4, R5, R6);
 
 endif;
 

@@ -1,78 +1,124 @@
-//set modeflag to -1 indicating exception handler
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) +9 ] = -1;
+// mode flag to -1
+[PROCESS_TABLE + (16*[SYSTEM_STATUS_TABLE+1]) + 9] = -1;
 
-//switch to kernelstck
+// ---------------------------------
 
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
-SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]* 512 - 1;
 
+// switch to kernel stack and backup
+[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
 backup;
 
-//after backup
-alias userSP R11;
-userSP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+alias userSP R1;
+userSP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13];
 
-
+// push eip to stack
 multipush(EIP);
-if(EC != 0 || userSP == 512*PTLR - 1)then
-    if( EC == 1) then
+
+
+// ---------------------------------
+
+
+// uncorrectable errors
+
+if(EC != 0 || userSP == (PTLR*512 - 1)) then
+
+    if(EC == 1) then
         print "ilgl instr";
     endif;
-    if( EC == 2) then
-        print "ilgl mem acs";
+    if(EC == 2) then
+        print "ilgl mem";
     endif;
-    if( EC == 3) then
-        print "arithmatic";
+    if(EC == 3) then
+        print "ilgl math";
     endif;
-    if(userSP == 512*PTLR - 1) then
-        print "stack overflow";
+
+    if(userSP == (PTLR*512 - 1)) then
+        print "overflow";
     endif;
 
     R1 = EXIT_PROCESS;
     R2 = [SYSTEM_STATUS_TABLE + 1];
-    call MOD_1;
+    call PROCESS_MANAGER;
 
-    call MOD_5;
+    call SCHEDULER;
+
 endif;
 
-//if page fault then check EPN
 
-//between 4 and 7 is the code page
+// ---------------------------------
 
-if(EPN >= 4 && EPN <=7)then
+
+// if code page gives fault
+if(EPN == 4 || EPN == 5 || EPN == 6 || EPN == 7) then
+
+    alias blockNum R2;
+    blockNum = [DISK_MAP_TABLE + (10*[SYSTEM_STATUS_TABLE+1]) + EPN];
+
+    // get the block from disk
+    multipush(R1, R2, EPN);
     R1 = GET_CODE_PAGE;
-    R2 = [DISK_MAP_TABLE + [SYSTEM_STATUS_TABLE + 1]*10 + EPN];
-    call MOD_2;//memory manager module
-    [PTBR + 2*EPN] = R0;
-    [PTBR + 2*EPN + 1] = "1100";
- 
+    R2 = blockNum;
+    call MEMORY_MANAGER;
+    multipop(R1, R2, EPN);
+
+    // update page table
+    [PTBR + (2*EPN) + 0] = R0;
+    [PTBR + (2*EPN) + 1] = "1100";
 endif;
 
-//if heap page 
 
-if(EPN == 2 || EPN == 3)then
-    R1 = GET_FREE_PAGE;
-    call MOD_2; //MEMORY MANAGER
-    [PTBR + 4] = R0;
-    [PTBR + 5] = "1110";
+// ---------------------------------
+
+
+// if stack page gives fault
+if(EPN == 2 || EPN == 3) then
     
-    R1 = GET_FREE_PAGE;
-    call MOD_2;
-    [PTBR + 6] = R0;
-    [PTBR + 7] = "1110";
+    alias pageNum R2;
+    pageNum = 2;
+
+    // get free pages for page 2 and 3
+    while(pageNum < 4) do
+        multipush(R1, R2, EPN);
+        R1 = GET_FREE_PAGE;
+        call MEMORY_MANAGER;
+        multipop(R1, R2, EPN);
+
+        // update page table
+        [PTBR + (2*pageNum) + 0] = R0;
+        [PTBR + (2*pageNum) + 1] = "1110";
+
+        pageNum = pageNum + 1;
+    endwhile;
 endif;
 
+
+// ---------------------------------
+
+
+// reset mode flag
+[PROCESS_TABLE + (16*[SYSTEM_STATUS_TABLE+1]) + 9] = 0;
+
+
+// ---------------------------------
+
+
+// restore the context and EIP
 multipop(EIP);
 restore;
 
 
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) +9 ] = 0;
+// ---------------------------------
+
 
 // store EIP on top of user stack
-SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
-SP = SP + 1;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE+1]*16) + 13];
 
-//Address translations needed for  SP  find the stack address to which EIP
-[[PTBR + 2*SP/512]*512 + SP%512] = EIP;
+SP = SP + 1;
+[([PTBR + 2*(SP/512)] * 512) + SP%512] = EIP;
+
+
+// ---------------------------------
+
 
 ireturn;

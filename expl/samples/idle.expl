@@ -1,13 +1,12 @@
-int main()
-{
-    decl
-        int temp,a;
-    enddecl
-    begin
-        a=0;
-        while(a<=200)do
-            a=a;
-        endwhile;
-        return 0;
-    end
+int main(){
+decl
+	int a;
+enddecl
+begin
+	
+	while(a==a)do
+		a=a;
+	endwhile;
+	return 0;
+end
 }

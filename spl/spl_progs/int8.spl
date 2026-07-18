@@ -1,35 +1,32 @@
-//mode flag to 8
-
-[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 8;
-
-// switch to the kernel stack
 alias userSP R10;
 userSP = SP;
 
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 8;
 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]* 512 - 1;
 
-//get pcbentry
+multipush(R10);
 R1 = GET_PCB_ENTRY;
 call MOD_1;
+multipop(R10);
 
 alias childID R5;
 R5 = R0;
 
-//if free processtable is not present reset modeflag and go to usermode
 if(childID == -1)then
     [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;
+    [[PTBR + (userSP - 1) * 2/512]*512 + (userSP - 1) % 512] = -1;
     SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
-    [[PTBR + (SP - 1) * 2/512]*512 + (SP - 1) % 512] = -1;
     ireturn;
 endif;
 
 alias childPTBR R9;
 childPTBR = [PROCESS_TABLE + childID*16 + 14];
 
-//heap(parent)
+//HEAP ALLOCATION
+
 if([PTBR + 4] == -1)then
-    multipush(R5);
+    multipush(R5, R9, R10);
 
     R1 = GET_FREE_PAGE;
     call MOD_2;
@@ -41,29 +38,34 @@ if([PTBR + 4] == -1)then
     [PTBR + 6] = R0;
     [PTBR + 7] = "0110";
     
-    multipop(R5);
+    multipop(R5, R9, R10);
 endif;
 
-//stack and userareapge(child)
+//STACK ALLOCATION
 
-multipush(R5);
+multipush(R5, R9, R10);
 R1 = GET_FREE_PAGE;
 call MOD_2;
+multipop(R5, R9, R10);
+
 [childPTBR + 16] = R0;
 [childPTBR + 17] = [PAGE_TABLE_BASE + 20*[SYSTEM_STATUS_TABLE + 1] + 17];
 
+multipush(R5, R9, R10);
 R1 = GET_FREE_PAGE;
 call MOD_2;
+multipop(R5, R9, R10);
+
 [childPTBR + 18] = R0;
 [childPTBR + 19] = [PAGE_TABLE_BASE + 20*[SYSTEM_STATUS_TABLE + 1] + 19];
 
-
+//USER AREA PAGE
+multipush(R5, R9, R10);
 R1 = GET_FREE_PAGE;
 call MOD_2;
-
-multipop(R5);
-
-//processtable for child
+multipop(R5, R9, R10);
+ 
+//SETTING UP THE PROCESS TABLE
 
 [PROCESS_TABLE + childID*16 + 0] = 0;                                                            //tick
 [PROCESS_TABLE + childID*16 + 2] = [SYSTEM_STATUS_TABLE + 1];                                    //parent id
@@ -87,21 +89,15 @@ while (counter < 10) do
     counter = counter + 1;
 endwhile;
 
-
-// page table entries
+// page table entries && SETTIGN UP THE PER PROCESS RESOUCE TABLE
 counter = 0;
 while (counter < 16) do
     [childPTBR + counter] = [PTBR + counter];
-    
-    //increment the share count 
     if (counter%2 ==0 && [childPTBR + counter] != -1) then
         [MEMORY_FREE_LIST + [childPTBR + counter]] = [MEMORY_FREE_LIST + [childPTBR + counter]] + 1;
     endif;
     counter = counter + 1;
 endwhile;
-
-
-//update for semaphore sharing copy for child and incr for parent
 
 alias newResourceTable R7;
 alias oldResourceTable R8;
@@ -116,17 +112,13 @@ while (counter < 16) do
     if([oldResourceTable + counter] == SEMAPHORE)then
         [SEMAPHORE_TABLE + [oldResourceTable + counter + 1]*4 + 1] = [SEMAPHORE_TABLE + [oldResourceTable + counter + 1]*4 + 1] + 1;
     endif;
-
     if([oldResourceTable + counter] == FILE)then
-        [OPEN_FILE_TABLE + [oldResourceTable + counter + 1]*4 + 1] = [OPEN_FILE_TABLE + [oldResourceTable + counter*4 + 1]] + 1;
+        [OPEN_FILE_TABLE + [oldResourceTable + counter + 1]*4 + 1] = [OPEN_FILE_TABLE + [oldResourceTable + counter + 1]*4 + 1] + 1;
     endif;
-    
+
     counter = counter + 2;
 endwhile;
 
-
-
-//user stack contents of parent to child word by word
 counter = 0;
 while (counter < 512) do
     [[childPTBR + 16] * 512 + counter] = [[PTBR + 16] * 512 + counter];
@@ -134,18 +126,12 @@ while (counter < 512) do
     counter = counter + 1;
 endwhile;
 
-//store bp on top of kernel stack and reset mode flag
 [[PROCESS_TABLE + childID * 16 + 11] * 512] = BP;
 [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
 
-
-
 //SETTING RETURN VALUES FOR THE PROCESSES
-//PID of child process as return value to the parent and 0 as the return values to the child
-
 [[PTBR + 2 * ((userSP - 1) / 512)] * 512 + (userSP - 1) % 512] = childID;
 [[childPTBR + 2 * ((userSP - 1) / 512)] * 512 + (userSP - 1) % 512] = 0;
 
 SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13];
-
 ireturn;

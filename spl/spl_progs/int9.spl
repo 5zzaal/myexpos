@@ -1,71 +1,48 @@
-//mode flag
-[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+9]=9;
-
-//save usersp
 alias userSP R0;
-userSP=SP;
+userSP = SP;
 
-[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+13]=SP;
-SP=[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+11]*512-1;
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]* 512 - 1;
 
-alias filename R1;
-filename=[[PTBR+(2*((userSP-4)/512))]*512+((userSP-4)%512)];
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) +9 ] = 9;
 
-//search for filename 
+alias NameOfFile R1;
+NameOfFile=[([PTBR + 2 * (userSP - 4)/512] * 512) + (userSP - 4)%512];
+
 alias inode_index R2;
-inode_index=0;
-while(inode_index<MAX_FILE_NUM)do
-    if([INODE_TABLE+(16*inode_index)+1]==filename)then 
+inode_index = 0;
+
+while(inode_index<60)do 
+    if([INODE_TABLE + inode_index*16 + 1]==NameOfFile && [INODE_TABLE + inode_index*16] == EXEC)then
         break;
     endif;
-    inode_index=inode_index+1;
+    inode_index = inode_index + 1;
 endwhile;
 
-//no file founded
-if(inode_index >= MAX_FILE_NUM || [INODE_TABLE + (16*inode_index) + 0] != EXEC) then
-    alias physicalAddrRetVal R3;
-    physicalAddrRetVal = [PTBR + (2 * ((userSP-1)/512))] * 512 + ((userSP-1) % 512);
-    [physicalAddrRetVal] = -1;
-    SP=userSP;
+if(inode_index == 60)then
+    SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+    [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) +9 ] = 0;
+    [[PTBR + (userSP - 1) * 2/512]*512 + (userSP - 1) % 512] = -1;
     ireturn;
 endif;
 
-//call exit process
-multipush(R0,R1,R2);
-R1=3;
-R2=[SYSTEM_STATUS_TABLE+1];
+multipush(R0, R1, R2, R3);
+R1 = EXIT_PROCESS;
+R2 = [SYSTEM_STATUS_TABLE + 1];
 call MOD_1;
-multipop(R0,R1,R2);
+multipop(R0, R1, R2, R3);
 
-//userarea page
-alias userAreaPage R3;
-userAreaPage=[PROCESS_TABLE+(16*[SYSTEM_STATUS_TABLE+1])+11];
-[MEMORY_FREE_LIST+userAreaPage]=[MEMORY_FREE_LIST+userAreaPage]+1;
-[SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]-1;
+[MEMORY_FREE_LIST + [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]] = [MEMORY_FREE_LIST + [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]] + 1;
+[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
 
-SP=userAreaPage*512-1;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512-1;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = RUNNING;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 7] = inode_index;
 
-//resetting perprocess resource table
-alias resourcetable R8;
-resourcetable = userAreaPage * 512 + RESOURCE_TABLE_OFFSET;
-R9=0;
-while(R9<16)do
-    [resourcetable+R9]=-1;
-    R9=R9+1;
-endwhile;
-
-//process table
-[PROCESS_TABLE + (16 * [SYSTEM_STATUS_TABLE+1]) + 4] = RUNNING; //READY?
-[PROCESS_TABLE + (16 * [SYSTEM_STATUS_TABLE+1]) + 7] = inode_index;
-
-//pagetable
-PTBR=PAGE_TABLE_BASE+([SYSTEM_STATUS_TABLE+1]*20);
-
-[PTBR+0]=63;
-[PTBR+1]="0100";
-[PTBR+2]=64;
-[PTBR+3]="0100";
-
+[PTBR + 0] = 63;
+[PTBR + 1] = "0100";
+[PTBR + 2] = 64;
+[PTBR + 3] = "0100";
 
 //invalidating heap
 [PTBR + 4] = -1;
@@ -73,24 +50,21 @@ PTBR=PAGE_TABLE_BASE+([SYSTEM_STATUS_TABLE+1]*20);
 [PTBR + 6] = -1;
 [PTBR + 7] = "0000";
 
-
-
 //stack
-multipush(R0,R1,R2,R3);
-
-R1=1;
+multipush(R0, R1, R2, R3);
+R1 = GET_FREE_PAGE;
+R2 = [SYSTEM_STATUS_TABLE + 1];
 call MOD_2;
-[PTBR+16]=R0;
-[PTBR+17]="0110";
+[PTBR + 16] = R0;
+[PTBR + 17] = "0110";
 
-R1=1;
+R1 = GET_FREE_PAGE;
+R2 = [SYSTEM_STATUS_TABLE + 1];
 call MOD_2;
-[PTBR+18]=R0;
-[PTBR+19]="0110";
-multipop(R0,R1,R2,R3);
+[PTBR + 18] = R0;
+[PTBR + 19] = "0110";
+multipop(R0, R1, R2, R3);
 
-
-//checking inode and getcodepg
 if([INODE_TABLE + inode_index*16 + 8] != -1)then
     multipush(R0, R1, R2, R3);
     R1 = GET_CODE_PAGE;
@@ -104,9 +78,6 @@ else
     [PTBR + 8 + 1] = "0000";
 endif;
 
-
-//invalidate rest of the code
-
 alias counter R4;
 counter = 5;
 while(counter<8)do
@@ -116,8 +87,7 @@ while(counter<8)do
 endwhile;
 
 
-
-//initalize diskmap code pages setted as disk blocknum
+//initializing the disk map
 counter = 0;
 while(counter < 10)do
     if(counter>3 && counter<8)then
@@ -128,20 +98,17 @@ while(counter < 10)do
     counter = counter + 1;
 endwhile;
 
+//per-process resource table
+counter = 0;
+alias PerProcessTable R5;
+PerProcessTable = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET;
+while(counter < 16)do
+    [PerProcessTable + counter] = -1;
+    counter = counter + 2;
+endwhile;
 
-
-//push ip to userstacktop
-[[PTBR+16]*512]=[[PTBR+8]*512+1];
-SP=8*512;
-
-
-//return success
-alias physicalAddrRetVal R3;
-physicalAddrRetVal = [PTBR + (2 * ((userSP-1)/512))] * 512 + ((userSP-1) % 512);
-[physicalAddrRetVal] = 0;
-
-//mode flag reset
-[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+9]=0;
-
+[[PTBR +16]*512] = [[PTBR + 8]*512 + 1];
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) +9 ] = 0;
+SP = 8*512;
 
 ireturn;

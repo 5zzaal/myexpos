@@ -28,6 +28,7 @@ while(counter<60)do
     counter = counter + 1;
 endwhile;
 
+
 if((sysNum == INT_DELETE && counter == 60) || (sysNum == INT_CREATE && counter != 60))then
     [returnAdd] = 0;
 else
@@ -62,7 +63,7 @@ else
         if([INODE_TABLE + counter*16] != DATA)then
             [returnAdd] = -1;
         else
-            if(([INODE_TABLE + counter*16 + 4] == EXCLUSIVE && [SYSTEM_STATUS_TABLE + 1] != 1 && [INODE_TABLE + counter*16 + 3] != [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 3]))then
+            if(([INODE_TABLE + counter*16 + 4] == EXCLUSIVE && [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 3] != 1 && [INODE_TABLE + counter*16 + 3] != [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 3]))then
                 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) +9 ] = 0;
                 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
                 [returnAdd] = -1;
@@ -75,7 +76,7 @@ else
             R3 = counter;
             call MOD_0;
             multipop(R0, R1, R2, R3, R4, R8);
-
+            
             if([FILE_STATUS_TABLE + counter*4 + 1] != -1)then
                 [returnAdd] = -2;
             else
@@ -92,7 +93,7 @@ else
 
                         multipush(R0, R1, R2, R3, R4, R5, R6, R8);
                         R1 = RELEASE_BLOCK;
-                        R2 = [INODE_TABLE + counter*16 + index];
+                        R2 = [block + index];
                         call MOD_2;
                         multipop(R0, R1, R2, R3, R4, R5, R6, R8);
 
@@ -104,12 +105,13 @@ else
                 iterator = 0;
                 while(iterator<16)do
                     [INODE_TABLE + counter*16 + iterator] = -1;
-                    iterator = iterator + 1;
                     if(iterator<8)then
-                        [ROOT_FILE + counter*8] = -1;
+                        [ROOT_FILE + counter*8 + iterator] = -1;
                     endif;
+                    iterator = iterator + 1;
                 endwhile;
-
+                [INODE_TABLE + counter*16 + 2] = 0;
+                [ROOT_FILE + counter*8 + 1] = 0;
                 [returnAdd] = 0;
             endif;
             

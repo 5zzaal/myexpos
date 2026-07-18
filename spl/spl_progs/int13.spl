@@ -1,19 +1,15 @@
 alias userSP R0;
 userSP = SP;
 
-//extract the systemcall number
 alias sysNum R10;
 sysNum = [[PTBR + 2*(userSP - 5)/512] * 512 + (userSP - 5)%512];
-
-//set modeflag
 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = sysNum;
 
-//switch to kernel
 [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11]* 512 - 1;
 
 
-//syscall semget
+//Semget syscall
 if(sysNum == INT_SEMGET)then
 
     multipush(R0);
@@ -22,12 +18,9 @@ if(sysNum == INT_SEMGET)then
     R2 = [SYSTEM_STATUS_TABLE + 1];
     call MOD_0;
 
-
-    //If there are no free semaphores, return -2.
     if(R0 == -1)then
         multipop(R0);
         [[PTBR + 2 * ((userSP - 1) / 512)] * 512 + ((userSP - 1) % 512)] = -2;
-
     else
 
         alias counter R3;
@@ -37,8 +30,6 @@ if(sysNum == INT_SEMGET)then
         resourceTable = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET;
 
         while(counter < 16)do
-
-        //Store the index of the Semaphore table entry
             if([resourceTable + counter] == -1)then
                 [resourceTable + counter] = SEMAPHORE;
                 [resourceTable + counter + 1] = R0;
@@ -49,43 +40,34 @@ if(sysNum == INT_SEMGET)then
 
         multipop(R0);
 
-
-        //If no free entry, then return -1.
         if(counter == 16)then
             [[PTBR + 2 * ((userSP - 1) / 512)] * 512 + ((userSP - 1) % 512)] = -1;
         else
-
-        //Return the Per-process Resource Table entry index.
             [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = counter;
         endif;
     endif;
     
 endif;
 
-
-
-
-//syscall semrelease
+//semrelease
 if(sysNum == INT_SEMRELEASE)then
 
-    alias semDescriptor R3;
-    semDescriptor = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP - 4)%512];
+    alias semDiscriptor R3;
+    semDiscriptor = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP - 4)%512];
 
-    //descriptor is invalid
-    if(semDescriptor<0 || semDescriptor>7)then
+    if(semDiscriptor<0 || semDiscriptor>7)then
         [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = -1;
     else
-    
         multipush(R0, R1, R2, R3);
 
         R1 = RELEASE_SEMAPHORE;
         R2 = [SYSTEM_STATUS_TABLE + 1];
-        R3 = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET + 2*semDescriptor + 1];
+        R3 = [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET + 2*semDiscriptor + 1];
         call MOD_0;
 
         multipop(R0, R1, R2, R3);
 
-        [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET + 2*semDescriptor] = -1;
+        [[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11]*512 + RESOURCE_TABLE_OFFSET + 2*semDiscriptor] = -1;
         [[PTBR + 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = 0;
     endif;
 

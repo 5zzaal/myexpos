@@ -1,36 +1,52 @@
-//user stackptr at 13 th word  backup current proceess in kerenl
-[PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
-
-//setting sp to userpgnum*512-1
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
 SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
-
-//bring the user contents to kernel using backup
 backup;
 
-//make current process ready
-alias currentPID R0;
-currentPID = [SYSTEM_STATUS_TABLE+1];
+if([SYSTEM_STATUS_TABLE + 5] != 0)then
+	
+	if([SYSTEM_STATUS_TABLE + 1] == SWAPPER_DAEMON)then
 
-alias process_table_entry R1;
-process_table_entry = PROCESS_TABLE + (currentPID * 16);
-[process_table_entry + 4] = READY;
-//breakpoint;
-//incrementing the timer tick
-alias counter R3;
-counter=0;
-while(counter < 16)do
-	[PROCESS_TABLE+counter*16]=[PROCESS_TABLE+counter*16] + 1;
-	counter=counter+1;
+		R1 = [SYSTEM_STATUS_TABLE + 5];
+		R2 = [SYSTEM_STATUS_TABLE + 1];
+		call MOD_6;
+
+	endif;
+else
+	if([SYSTEM_STATUS_TABLE + 2] < MEM_LOW)then
+		[SYSTEM_STATUS_TABLE + 5] = SWAP_OUT;
+	else
+		if([SYSTEM_STATUS_TABLE + 4] > 0)then
+			alias swapPID R1;
+			swapPID = 3;
+			while(swapPID < MAX_PROC_NUM)do
+				if([PROCESS_TABLE + swapPID*16 + 6] == 1 && [PROCESS_TABLE + swapPID*16] > MAX_TICK)then
+					[SYSTEM_STATUS_TABLE + 5] = SWAP_IN;
+					break;
+				endif;
+				swapPID = swapPID + 1;
+			endwhile;
+
+			if([SYSTEM_STATUS_TABLE + 2] > MEM_HIGH)then
+				[SYSTEM_STATUS_TABLE + 5] = SWAP_IN;
+			endif;
+
+		endif;
+	endif;
+endif;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 4] = READY;
+
+alias counter R2;
+counter = 0;
+while(counter < 16) do	
+	[PROCESS_TABLE + counter*16] = [PROCESS_TABLE + counter*16] + 1;
+	counter = counter + 1;
 endwhile;
-call MOD_5;
-//breakpoint;
 
-//restore user context from kernel stack
+call MOD_5;
+
 restore;
 
-//getback the sp
-SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
-//setting mode flag to zero
-[PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+9]=0;
-
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 13];
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
 ireturn;

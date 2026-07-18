@@ -1,88 +1,77 @@
-alias functionNum R1;
+alias funNum R1;
 
+if(funNum == GET_FREE_PAGE)then
 
-//get freepage
-
-if(functionNum==GET_FREE_PAGE)then
-
-    [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]+1;
-
-    while([SYSTEM_STATUS_TABLE+2]==0)do
-        [PROCESS_TABLE+([SYSTEM_STATUS_TABLE+1]*16)+4]=WAIT_MEM;
-
-        multipush(R1);
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
+    
+    while([SYSTEM_STATUS_TABLE + 2] == 0)do
+    
+        [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = WAIT_MEM;
+        multipush(R1, R2);
         call MOD_5;
-        multipop(R1);
+        multipop(R1, R2);
 
     endwhile;
 
-    [SYSTEM_STATUS_TABLE+3]=[SYSTEM_STATUS_TABLE+3]-1;
-    [SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]-1;
-    
-    alias counter R0;
-    // till 82 free lis is 1
-    counter=83;
-    while(counter<MAX_MEM_PAGE)do
-        if([MEMORY_FREE_LIST+counter]==0)then
-            [MEMORY_FREE_LIST+counter]=1;
-            break;
-        endif;
 
-        counter=counter+1;
+    [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+    [SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] - 1;
+
+    alias freepage R0;
+    freepage = 83;
+
+    while([MEMORY_FREE_LIST + freepage]>0)do   
+        freepage = freepage + 1;
     endwhile;
-    
 
+    if(freepage > 127)then
+        print "error";
+        breakpoint;
+
+    endif;
+    [MEMORY_FREE_LIST + freepage] = 1;
     return;
 endif;
 
+if(funNum == RELEASE_PAGE)then 
 
+    alias RelPage R2;
+    [MEMORY_FREE_LIST + RelPage] = [MEMORY_FREE_LIST + RelPage] - 1;
 
-//release page
+    if([MEMORY_FREE_LIST + RelPage]==0)then 
+        [SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+        alias count R7;
+        count = 0;
 
-if(functionNum==RELEASE_PAGE)then
-    alias counter R2;
-    [MEMORY_FREE_LIST+counter]=[MEMORY_FREE_LIST+counter]-1;
-
-    if([MEMORY_FREE_LIST+counter]==0)then
-        [SYSTEM_STATUS_TABLE+2]=[SYSTEM_STATUS_TABLE+2]+1;
-
-        alias pointer R5;
-        pointer=0;
-        while(pointer<16)do
-            if([PROCESS_TABLE+(pointer*16)+4]==WAIT_MEM)then
-                [PROCESS_TABLE+(pointer*16)+4]=READY;
+        while(count < 16)do 
+            if([PROCESS_TABLE + count*16 + 1]!=-1 && [PROCESS_TABLE + count*16 + 4]==WAIT_MEM)then
+                [PROCESS_TABLE + count*16 + 4]=READY;
             endif;
-            pointer=pointer+1;
+            count = count + 1;
         endwhile;
+
     endif;
     
+    R0 = RelPage;
+    return;
+endif;  
+
+if(funNum == RELEASE_BLOCK)then
+    [DISK_FREE_LIST + R2] = 0;
     return;
 endif;
 
-
-//release block function
-if(functionNum == RELEASE_BLOCK)then
-    [DISK_FREE_LIST + R2] = [DISK_FREE_LIST + R2] - 1;
-    return;
-endif;
-
-
-
-//getcode page
-
-if(functionNum == GET_CODE_PAGE)then
+if(funNum == GET_CODE_PAGE)then
     alias i R6;
     alias j R7;
     alias ptbr R8;
-    alias block_num R2;
+    alias blockNum R2;
     i = 0;
-
-    //check diskmap if given block in any memory
     while(i<16)do
         j = 4;
         ptbr = [PROCESS_TABLE + i*16 + 14];
         while(j<8)do
-            if([DISK_MAP_TABLE + i*10 + j]==block_num && [ptbr + 2*j]!=-1)then
+            if([DISK_MAP_TABLE + i*10 + j]==blockNum && [ptbr + 2*j]!=-1)then
                 R0 = [ptbr + 2*j];
                 [MEMORY_FREE_LIST +R0] = [MEMORY_FREE_LIST + R0] + 1;
                 return; 
@@ -92,30 +81,24 @@ if(functionNum == GET_CODE_PAGE)then
         i = i + 1;
     endwhile;
 
-    //if code page not in memory invoke get free page 
     multipush(R1, R2);
     R1 = GET_FREE_PAGE;
     call MOD_2;
     multipop(R1, R2);
+
     multipush(R0, R1, R2, R3);
     R1 = DISK_LOAD;
-
-    //while calling get_code_page the R2 is set as the block number so update
-    R4 = block_num;
+    R4 = blockNum;
     R2 = [SYSTEM_STATUS_TABLE + 1];
     R3 = R0;
     call MOD_4;
     multipop(R0, R1, R2, R3);
-
+    
 endif;
 
-
-//get free page
-
-if(functionNum == GET_FREE_BLOCK)then
+if(funNum == GET_FREE_BLOCK)then
     alias counter R0;
-    counter = DISK_FREE_AREA;   //starting block of userblock
-                                //disk swap. starting block of swap area
+    counter = DISK_FREE_AREA;
 
     while(counter<DISK_SWAP_AREA)do
         if([DISK_FREE_LIST + counter] == 0)then
@@ -125,7 +108,6 @@ if(functionNum == GET_FREE_BLOCK)then
         counter = counter + 1;
     endwhile;
 
-    //if not found return -1
     if(counter == DISK_SWAP_AREA)then
         R0 = -1;
     endif;
@@ -133,4 +115,19 @@ if(functionNum == GET_FREE_BLOCK)then
     return;
 endif;
 
+if(funNum == GET_SWAP_BLOCK)then
+    alias counter R0;
+    counter = DISK_SWAP_AREA;
+
+    while(counter < DISK_SIZE)do
+        if([DISK_FREE_LIST + counter] == 0)then
+            [DISK_FREE_LIST + counter] = 1;
+            return;
+        endif;
+        counter = counter + 1;
+    endwhile;
+
+    R0 = -1;
+    return;
+endif;
 return;
